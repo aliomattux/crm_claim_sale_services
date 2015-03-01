@@ -1,0 +1,44 @@
+<openerp>
+    <data>
+
+        <record id="view_sale_claims_configuration" model="ir.ui.view">
+            <field name="name">Sale claims Settings</field>
+            <field name="model">claims.config.settings</field>
+            <field name="arch" type="xml">
+                <form string="Configure Sale claims" class="oe_form_configuration">
+                    <header>
+                        <button string="Apply" type="object" name="execute" class="oe_highlight"/>
+                        or
+                        <button string="Cancel" type="object" name="cancel" class="oe_link"/>
+                    </header>
+                    <separator string="General"/>
+                    <group>
+                        <label for="id" string="General Settings"/>
+                        <div>
+                            <div>
+                                <label for="default_product_policy"/>
+                                <field name="default_product_policy" class="oe_inline"/>
+                                <label for="default_strict_claims"/>
+                                <field name="default_strict_claims" class="oe_inline"/>
+
+                            </div>
+                        </div>
+                    </group>
+                </form>
+            </field>
+        </record>
+
+        <record id="action_sale_claims_configuration" model="ir.actions.act_window">
+            <field name="name">Configure Purchases</field>
+            <field name="type">ir.actions.act_window</field>
+            <field name="res_model">claims.config.settings</field>
+            <field name="view_mode">form</field>
+            <field name="target">inline</field>
+        </record>
+
+        <menuitem id="menu_sale_claims_configuration" name="claims" parent="base.menu_config"
+            sequence="3" action="action_sale_claims_configuration"/>
+
+
+    </data>
+</openerp>

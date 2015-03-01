@@ -1,0 +1,46 @@
+<openerp>
+    <data>
+        <record id="view_sale_claim_form" model="ir.ui.view">
+            <field name="name">Sale Order Claims Form</field>
+            <field name="model">sale.order</field>
+            <field name="inherit_id" ref="sale_stock.view_order_form_inherit" />
+            <field name="arch" type="xml">
+<!--		<field name="warehouse_id" position="after">
+		    <field name="returned_from" attrs="{'invisible': [('returned_from', '=', False)]}" />
+		</field>-->
+                <button name="action_view_invoice" position="after" >
+		    <button name="button_create_claim" string="Create Claim" type="object" class="oe_highlight" attrs="{'invisible': [('claims', '=', False)]}"/>
+		    <button name="button_view_claim" string="View Claim" type="object" class="oe_highlight" attrs="{'invisible': [('claims', '!=', False)]}"/>
+                </button>
+		<page string="Other Information" position="before">
+		    <page string="Claims">
+			<field name="claims" widget="one2many_list" readonly="1">
+			    <tree>
+				<field name="name" />
+				<field name="claim_action" />
+				<field name="claim_reason" />
+				<field name="state" />
+			    </tree>
+			</field>
+			<field name="product_policy" />
+			<field name="strict_return" />
+		    </page>
+		</page>
+            </field>
+        </record>
+
+<!--
+        <record id="action_claims" model="ir.actions.act_window">
+            <field name="name">Returns</field>
+            <field name="type">ir.actions.act_window</field>
+            <field name="res_model">sale.order</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form,calendar,graph</field>
+            <field name="search_view_id" ref="sale.view_sales_order_filter"/>
+            <field name="domain">[('returned_from', '!=', False)]</field>
+        </record>
+
+        <menuitem action="action_returns" id="menu_sale_returns" parent="base.menu_sales" sequence="10" groups="base.group_sale_salesman,base.group_sale_manager"/>
+-->
+    </data>
+</openerp>

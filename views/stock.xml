@@ -1,0 +1,16 @@
+<openerp>
+    <data>
+
+        <record id="view_crm_claim_picking_form" model="ir.ui.view">
+            <field name="name">CRM Claim Picking Form</field>
+            <field name="model">stock.picking</field>
+            <field name="inherit_id" ref="stock.view_picking_form" />
+            <field name="arch" type="xml">
+                <field name="backorder_id" position="after" >
+                    <field name="claim" attrs="{'invisible': [('claim', '=', False)]}" readonly="1"/>
+                </field>
+            </field>
+        </record>
+
+    </data>
+</openerp>

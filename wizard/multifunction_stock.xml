@@ -1,0 +1,44 @@
+<openerp>
+    <data>
+
+         <act_window name="Create Return"
+            res_model="crm.claim.multifunction.stock"
+            src_model="crm.claim"
+            view_mode="form"
+            target="new"
+            key2="client_action_multi"
+            multi="True"
+            id="act_create_claim_return"/>
+
+         <act_window name="Create Delivery Order"
+            res_model="crm.claim.multifunction.stock"
+            src_model="crm.claim"
+            view_mode="form"
+            target="new"
+            key2="client_action_multi"
+            multi="True"
+            id="act_create_claim_delivery_order"/>
+
+
+        <record id="claim_multi_function_stock_form" model="ir.ui.view">
+            <field name="name">Claim Create Return Form</field>
+            <field name="model">crm.claim.multifunction.stock</field>
+            <field name="arch" type="xml">
+		<form>
+		    <field name="move_lines" widget="one2many_list" >
+		        <tree editable="top">
+			    <field name="product" />
+			    <field name="name" />
+			    <field name="order_qty" />
+		        </tree>
+		    </field>
+		    <group>
+		        <button string="Create Return" type="object" name="make_transfer" />
+		        <button string="Create Delivery Order" type="object" name="make_transfer" />
+		    </group>
+		</form>
+	    </field>
+	</record>
+
+    </data>
+</openerp>
