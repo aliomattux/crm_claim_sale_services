@@ -7,7 +7,7 @@
             <field name="arch" type="xml">
                 <form string="Claim">
                 <header>
-<!--		    <button name="act_create_claim_delivery_order)d" type="action" string="Create Delivery Order" /> -->
+		    <button name="button_create_claim_delivery_order" type="object" string="Create Delivery Order" attrs="{'invisible': [('claim_action', '!=', 'exchange')]}"/>
 		    <button name="button_create_claim_return" type="object" string="Create Return" attrs="{'invisible': [('claim_action', '!=', 'return')]}"/>
                     <button name="button_create_claim_refund" type="object" string="Create Refund" attrs="{'invisible': [('claim_action', '!=', 'refund')]}"/>
                     <button name="button_create_claim_invoice" type="object" string="Create Invoice" invisible="1"/>
@@ -22,6 +22,7 @@
 		    <group>
                         <group>
 			    <field name="hidden_sale" invisible="1" />
+			    <field name="warehouse" invisible="1" />
 			    <field name="sale" attrs="{'invisible': [('sale', '=', False)]}"/>
 			    <field name="hidden_partner_id" invisible="1" />
 			    <field name="partner_id" attrs="{'readonly': [('sale', '!=', False)]}"/>
@@ -45,8 +46,9 @@
 			    <page string="Return/Refund Items" >
 				<field name="claim_return_lines" widget="one2many_list" >
 				    <tree editable="bottom">
-					<field name="product" on_change="onchange_product(product, name, order_qty, product_uom, 'return', parent.partner_id, context)"/>
+					<field name="product" on_change="onchange_product(product, name, order_qty, product_uom, 'return', parent.partner_id, parent.warehouse, context)"/>
 					<field name="name" />
+					<field name="route" invisible="1" />
 					<field name="type" invisible="1" />
 					<field name="order_qty" />
 					<field name="product_uom" />
@@ -61,8 +63,9 @@
 			    <page string="Deliver/Exchanged for Items" attrs="{'invisible': [('claim_action', '!=', 'exchange')]}">
 				<field name="claim_delivery_lines" widget="one2many_list" >
 				    <tree editable="bottom">
-					<field name="product" on_change="onchange_product(product, name, order_qty, product_uom, 'delivery', parent.partner_id, context)"/>
+					<field name="product" on_change="onchange_product(product, name, order_qty, product_uom, 'delivery', parent.partner_id, parent.warehouse, context)"/>
 					<field name="name" />
+					<field name="route" invisible="1" />
 					<field name="type" invisible="1" />
 					<field name="order_qty" />
 					<field name="product_uom" />

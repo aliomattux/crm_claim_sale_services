@@ -1,5 +1,6 @@
 from openerp.osv import osv, fields
 from openerp.tools.translate import _
+from datetime import datetime, timedelta
 import openerp.addons.decimal_precision as dp
 from openerp.tools import DEFAULT_SERVER_DATE_FORMAT, DEFAULT_SERVER_DATETIME_FORMAT, DATETIME_FORMATS_MAP
 from openerp.tools.float_utils import float_compare
@@ -39,6 +40,7 @@ class CrmClaim(osv.osv):
     _columns = {
 	'name': fields.char('Name', required=True),
 	'user_id': fields.many2one('res.users', 'CS Representative', track_visibility='always'),
+	'warehouse': fields.many2one('stock.warehouse', 'Warehouse'),
 	'hidden_partner_id': fields.many2one('res.partner', 'Customer', help="Needed because stupid OpenERP doesn't understand the concept of readonly field"),
 	'claim_return_lines': fields.one2many('crm.claim.line', 'claim', string='Returned Items', domain=[('type', '=', 'return')]),
 	'claim_delivery_lines': fields.one2many('crm.claim.line', 'claim', string='Delivered Items', domain=[('type', '=', 'delivery')]),
@@ -98,30 +100,36 @@ class CrmClaim(osv.osv):
     }
 
 
-    def _prepare_procurement_group(self, cr, uid, order, context=None):
-        return {'name': claim.name, 'partner_id': claim.partner_shipping_id.id}
+    def _prepare_procurement_group(self, cr, uid, claim, context=None):
+        return {'name': claim.name, 'partner_id': claim.partner_shipping_address.id}
 
 
-    def _get_date_planned(self, cr, uid, order, line, start_date, context=None):
-        date_planned = datetime.strptime(start_date, DEFAULT_SERVER_DATETIME_FORMAT) + timedelta(days=line.delay or 0.0)
-        return date_planned
+#    def _get_date_planned(self, cr, uid, claim, line, start_date, context=None):
+ #       date_planned = datetime.strptime(start_date, DEFAULT_SERVER_DATETIME_FORMAT) + timedelta(days=line.delay or 0.0)
+  #      return date_planned
 
 
     def _prepare_claim_line_procurement(self, cr, uid, claim, line, group_id=False, context=None):
-        date_planned = self._get_date_planned(cr, uid, claim, line, claim.date, context=context)
+#        date_planned = self._get_date_planned(cr, uid, claim, line, claim.date, context=context)
+        routes = line.route and [(4, line.route_id.id)] or []
+
         return {
             'name': line.name,
             'origin': claim.name,
-            'date_planned': date_planned,
-            'product_id': line.product_id.id,
+            'date_planned': claim.date,
+            'product_id': line.product.id,
             'product_qty': line.order_qty,
             'product_uom': line.product_uom.id,
-            'product_uos_qty': (line.product_uos and line.product_uos_qty) or line.product_uom_qty,
-            'product_uos': (line.product_uos and line.product_uos.id) or line.product_uom.id,
+            'product_uos_qty': line.order_qty,
+            'product_uos': line.product_uom.id,
             'company_id': claim.company_id.id,
             'group_id': group_id,
-            'invoice_state': (claim.order_policy == 'picking') and '2binvoiced' or 'none',
-            'claim_line_id': line.id
+            'invoice_state': 'none',
+            'claim_line_id': line.id,
+	    'location_id': claim.partner_shipping_address.property_stock_customer.id,
+            'route_ids': routes,
+            'warehouse_id': claim.warehouse and claim.warehouse.id or False,
+            'partner_dest_id': claim.partner_shipping_address.id
         }
 
 
@@ -231,6 +239,10 @@ class CrmClaim(osv.osv):
 	return True
 
 
+    def button_create_claim_delivery_order(self, cr, uid, ids, context=None):
+        return self.action_ship_create(cr, uid, ids, context=context)
+
+
     def button_create_claim_return(self, cr, uid, ids, context=None):
         return self.action_return_create(cr, uid, ids, context=context)
 
@@ -278,28 +290,31 @@ class CrmClaim(osv.osv):
         context = dict(context)
         context['lang'] = self.pool['res.users'].browse(cr, uid, uid).lang
         procurement_obj = self.pool.get('procurement.order')
-        sale_line_obj = self.pool.get('crm.claim.line')
+        claim_line_obj = self.pool.get('crm.claim.line')
         for claim in self.browse(cr, uid, ids, context=context):
             proc_ids = []
             vals = self._prepare_procurement_group(cr, uid, claim, context=context)
-            if not claim.procurement_group_id:
-		group_id = claim.sale.procurement_group_id.id
-#                group_id = self.pool.get("procurement.group").create(cr, uid, vals, context=context)
+          #  if not claim.procurement_group_id:
+#		group_id = claim.sale.procurement_group_id.id
+            group_id = self.pool.get("procurement.group").create(cr, uid, vals, context=context)
 #                claim.write({'procurement_group_id': group_id})
 
             for line in claim.claim_delivery_lines:
                 #Try to fix exception procurement (possible when after a shipping exception the user choose to recreate)
                 if line.procurement_ids:
+		    print 'Call Primary'
                     #first check them to see if they are in exception or not (one of the related moves is cancelled)
                     procurement_obj.check(cr, uid, [x.id for x in line.procurement_ids if x.state not in ['cancel', 'done']])
                     line.refresh()
                     #run again procurement that are in exception in order to trigger another move
                     proc_ids += [x.id for x in line.procurement_ids if x.state in ('exception', 'cancel')]
                     procurement_obj.reset_to_confirmed(cr, uid, proc_ids, context=context)
-                elif claim_line_obj.need_procurement(cr, uid, [line.id], context=context):
-                    if (line.state == 'done') or not line.product_id:
+		elif True:
+#                elif claim_line_obj.need_procurement(cr, uid, [line.id], context=context):
+		    print 'Call Secondary'
+                    if (line.state == 'done') or not line.product:
                         continue
-                    vals = self._prepare_claim_line_procurement(cr, uid, order, line, group_id=claim.procurement_group_id.id, context=context)
+                    vals = self._prepare_claim_line_procurement(cr, uid, claim, line, group_id=group_id, context=context)
                     proc_id = procurement_obj.create(cr, uid, vals, context=context)
                     proc_ids.append(proc_id)
             #Confirm procurement order such that rules will be applied on it
@@ -323,8 +338,16 @@ class CrmClaim(osv.osv):
 class CrmClaimLine(osv.osv):
     _name = 'crm.claim.line'
 
-    def onchange_product(self, cr, uid, ids, product, name, order_qty, product_uom, type, partner_id, context=None):
-	print 'CALL'
+    def need_procurement(self, cr, uid, ids, context=None):
+        #when sale is installed only, there is no need to create procurements, that's only
+        #further installed modules (sale_service, sale_stock) that will change this.
+        prod_obj = self.pool.get('product.product')
+        for line in self.browse(cr, uid, ids, context=context):
+            if prod_obj.need_procurement(cr, uid, [line.product.id], context=context):
+                return True
+        return False
+
+    def onchange_product(self, cr, uid, ids, product, name, order_qty, product_uom, type, partner_id, warehouse_id, context=None):
         context = context or {}
         lang = context.get('lang', False)
 	flag = False
@@ -335,7 +358,7 @@ class CrmClaimLine(osv.osv):
         partner = partner_obj.browse(cr, uid, partner_id)
         lang = partner.lang
         context_partner = {'lang': lang, 'partner_id': partner_id}
-
+	warehouse_obj = self.pool.get('stock.warehouse')
         if not product:
             return {'value': {'order_qty': order_qty}, 'domain': {'product_uom': []}}
 
@@ -376,6 +399,46 @@ class CrmClaimLine(osv.osv):
             uom2 = product.uom_id
         # get unit price
 	warning = False
+
+
+        if product.type == 'product':
+            #determine if the product is MTO or not (for a further check)
+            isMto = False
+            if warehouse_id:
+                warehouse = warehouse_obj.browse(cr, uid, warehouse_id, context=context)
+                for product_route in product.route_ids:
+                    if warehouse.mto_pull_id and warehouse.mto_pull_id.route_id and warehouse.mto_pull_id.route_id.id == product_route.id:
+                        isMto = True
+                        break
+            else:
+                try:
+                    mto_route_id = warehouse_obj._get_mto_route(cr, uid, context=context)
+                except:
+                    # if route MTO not found in ir_model_data, we treat the product as in MTS
+                    mto_route_id = False
+                if mto_route_id:
+                    for product_route in product.route_ids:
+                        if product_route.id == mto_route_id:
+                            isMto = True
+                            break
+
+            #check if product is available, and if not: raise a warning, but do this only for products that aren't processed in MTO
+            if not isMto:
+                uom_record = False
+                if uom:
+                    uom_record = product_uom_obj.browse(cr, uid, uom, context=context)
+                    if product.uom_id.category_id.id != uom_record.category_id.id:
+                        uom_record = False
+                if not uom_record:
+                    uom_record = product.uom_id
+                compare_qty = float_compare(product.virtual_available, qty, precision_rounding=uom_record.rounding)
+                if compare_qty == -1:
+                    warn_msg = _('You plan to sell %.2f %s but you only have %.2f %s available !\nThe real stock is %.2f %s. (without reservations)') % \
+                        (qty, uom_record.name,
+                         max(0,product.virtual_available), uom_record.name,
+                         max(0,product.qty_available), uom_record.name)
+                    warning_msgs += _("Not enough stock ! : ") + warn_msg + "\n\n"	    
+
         return {'value': result, 'domain': domain, 'warning': warning}
 
 
@@ -393,6 +456,7 @@ class CrmClaimLine(osv.osv):
 
 
     _columns = {
+	'route': fields.many2one('stock.location.route', 'Route', domain=[('sale_selectable', '=', True)]),
 	'type': fields.selection([('return', 'Returned'), ('delivery', 'Delivery')], 'Line Type', required=True),
         'claim': fields.many2one('crm.claim', 'Order Reference', required=True, ondelete='cascade', select=True, readonly=True, states={'draft':[('readonly',False)]}),
         'name': fields.text('Description', required=True, readonly=True, states={'draft': [('readonly', False)]}),

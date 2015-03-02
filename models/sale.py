@@ -27,6 +27,7 @@ class SaleOrder(osv.osv):
 		'order_qty': item.product_uom_qty,
 	#	'tax_id': item.tax_id,
 		'sale_price_unit': item.price_unit,
+		'route_id': item.route_id and [(4, line.route_id.id)] or [],
 		'state': 'draft',
 		'name': item.name,
 		'discount': item.discount,
@@ -34,6 +35,7 @@ class SaleOrder(osv.osv):
 	     })
 
 	default_vals = {
+		'default_warehouse': sale.warehouse_id.id,
 		'default_hidden_sale': sale.id,
 		'default_sale': sale.id,
 		'default_partner_id': sale.partner_id.id,
