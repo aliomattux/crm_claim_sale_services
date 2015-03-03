@@ -96,6 +96,7 @@ class CrmClaim(osv.osv):
  #       self.message_post(cr, uid, [new_id], body=_("Quotation created"), context=ctx)
         return new_id
 
+    #Pricelist hardcode is to bypass problem temporarily
     _defaults = {
         'name': lambda obj, cr, uid, context: '/',
 	'pricelist_id': 1,
