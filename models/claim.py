@@ -371,7 +371,7 @@ class CrmClaimLine(osv.osv):
 
         uom2 = False
         if product_uom:
-            uom2 = product_uom_obj.browse(cr, uid, uom)
+            uom2 = product_uom_obj.browse(cr, uid, product_uom)
             if product.uom_id.category_id.id != uom2.category_id.id:
                 product_uom = False
 
