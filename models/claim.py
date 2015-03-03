@@ -13,6 +13,7 @@ CLAIM_SEQ_DICT = {'return': 'crm.claim.return',
 class CrmClaim(osv.osv):
     _inherit = 'crm.claim'
 
+
     def _get_picking_in(self, cr, uid, context=None):
         obj_data = self.pool.get('ir.model.data')
         type_obj = self.pool.get('stock.picking.type')
@@ -24,6 +25,7 @@ class CrmClaim(osv.osv):
             if not types:
                 raise osv.except_osv(_('Error!'), _("Make sure you have at least an incoming picking type defined"))
         return types[0]
+
 
     def _get_return_journal(self, cr, uid, context=None):
         if context is None:
@@ -39,6 +41,7 @@ class CrmClaim(osv.osv):
 
     _columns = {
 	'name': fields.char('Name', required=True),
+	'pricelist_id': fields.many2one('product.pricelist', 'Pricelist', required=True, readonly=True, states={'draft': [('readonly', False)], 'sent': [('readonly', False)]}),
 	'user_id': fields.many2one('res.users', 'CS Representative', track_visibility='always'),
 	'warehouse': fields.many2one('stock.warehouse', 'Warehouse'),
 	'hidden_partner_id': fields.many2one('res.partner', 'Customer', help="Needed because stupid OpenERP doesn't understand the concept of readonly field"),
@@ -95,6 +98,7 @@ class CrmClaim(osv.osv):
 
     _defaults = {
         'name': lambda obj, cr, uid, context: '/',
+	'pricelist_id': 1,
 	'state': 'draft',
 	'picking_type_id': _get_picking_in,
     }
