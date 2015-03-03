@@ -304,6 +304,7 @@ class CrmClaim(osv.osv):
             group_id = self.pool.get("procurement.group").create(cr, uid, vals, context=context)
 #                claim.write({'procurement_group_id': group_id})
 
+	    #Remove notes and add proper state handling
             for line in claim.claim_delivery_lines:
                 #Try to fix exception procurement (possible when after a shipping exception the user choose to recreate)
                 if line.procurement_ids:
