@@ -154,8 +154,21 @@ class CrmClaim(osv.osv):
             claim.write({'invoice_ids': [(4, inv_id)]})
             res = inv_id
 
-        return res
+        view_ref = self.pool.get('ir.model.data').get_object_reference(cr, uid, 'account', 'invoice_form')
+        view_id = view_ref and view_ref[1] or False,
 
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Customer Refund'),
+            'res_model': 'account.invoice',
+            'context': {},
+            'res_id': inv_id,
+            'view_type': 'form',
+            'view_mode': 'form',
+            'view_id': view_id,
+            'target': 'current',
+            'nodestroy': True,
+        }
 
     ###############  Charge Functions  ##################
     def _make_charge_invoice(self, cr, uid, claim, lines, context=None):
@@ -239,7 +252,23 @@ class CrmClaim(osv.osv):
                 cr.execute('insert into crm_claim_invoice_rel (claim_id,invoice_id) values (%s,%s)', (claim.id, res))
                 self.invalidate_cache(cr, uid, ['invoice_ids'], [claim.id], context=context)
 
-        return res
+	inv_id = res
+        view_ref = self.pool.get('ir.model.data').get_object_reference(cr, uid, 'account', 'invoice_form')
+        view_id = view_ref and view_ref[1] or False,
+
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Customer Invoie'),
+            'res_model': 'account.invoice',
+            'context': {},
+            'res_id': inv_id,
+            'view_type': 'form',
+            'view_mode': 'form',
+            'view_id': view_id,
+            'target': 'current',
+            'nodestroy': True,
+        }
+
 
 
     def _prepare_charge_invoice(self, cr, uid, claim, lines, context=None):
