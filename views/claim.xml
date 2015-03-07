@@ -42,7 +42,7 @@
                 <header>
 		    <button name="button_create_claim_delivery_order" type="object" string="Create Delivery Order" attrs="{'invisible': [('claim_action', '!=', 'exchange')]}"/>
 		    <button name="button_create_claim_return" type="object" string="Create Return" attrs="{'invisible': [('claim_action', 'not in', ('return','exchange'))]}"/>
-                    <button name="button_create_claim_refund" type="object" string="Create Refund" attrs="{'invisible': [('claim_action', 'not in', ('refund','return'))]}"/>
+                    <button name="button_create_claim_refund" type="object" string="Create Refund" attrs="{'invisible': [('claim_action', 'not in', ('refund','return', 'exchange'))]}"/>
                     <button name="button_create_claim_invoice" type="object" string="Create Invoice" attrs="{'invisible': [('claim_action', '!=', 'exchange')]}" />
 		    <field name="state" widget="statusbar" />
                 </header>
@@ -136,7 +136,9 @@
 				<group string="Invoices" colspan="4">
 				    <field name="invoice_ids" widget="one2many_list" nolabel="1" >
 					<tree>
+					    <field name="name" />
 					    <field name="number" />
+					    <field name="type" />
 					    <field name="state" />
 					</tree>
 				    </field>
