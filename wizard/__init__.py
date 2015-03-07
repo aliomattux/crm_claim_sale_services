@@ -1,2 +1,0 @@
-import multifunction_stock_wizard
-import multifunction_invoice_wizard

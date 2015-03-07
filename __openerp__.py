@@ -8,8 +8,6 @@
     'description': """ 
     """,
     'data': ['views/sale.xml',
-	     'wizard/multifunction_stock.xml',
-	     'wizard/multifunction_invoice.xml',
 	     'views/claim.xml',
 	     'views/stock.xml',
 	     'data/claim_service_sequence.xml',
