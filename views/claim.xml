@@ -1,5 +1,38 @@
 <openerp>
     <data>
+        <record id="view_crm_claim_services_search" model="ir.ui.view">
+            <field name="name">Claims Services Search</field>
+            <field name="model">crm.claim</field>
+	    <field name="inherit_id" ref="crm_claim.view_crm_case_claims_filter" />
+            <field name="arch" type="xml">
+                <field name="name" position="after">
+		    <field name="sale" string="Sale Order" />
+		    <filter string="Returns" domain="[('claim_action', '=', 'return')]" />
+		    <filter string="Exchanges" domain="[('claim_action', '=', 'exchange')]" />
+		    <filter name="Refunds" domain="[('claim_action', '=', 'refund')]" />
+		</field>
+            </field>
+        </record>
+
+        <record id="crm_claim_services_tree" model="ir.ui.view">
+            <field name="name">CRM - Claims Tree</field>
+            <field name="model">crm.claim</field>
+            <field name="arch" type="xml">
+                <tree string="Claims">
+		    <field name="claim_action" />
+                    <field name="name"/>
+		    <field name="claim_reason" />
+                    <field name="partner_id"/>
+		    <field name="sale" />
+                    <field name="user_id"/>
+                    <field name="date"/>
+                    <field name="state"/>
+                    <field name="action_next"/>
+		    <field name="amount_return_total" string="Return Total" />
+		    <field name="amount_charge_total" string="Exchange Total" />
+                </tree>
+            </field>
+        </record>
 
         <record model="ir.ui.view" id="crm_claim_services_form">
             <field name="name">CRM - Claims Form</field>
@@ -130,12 +163,18 @@
             </field>
         </record>
 
-        <record id="crm_claim.action_crm_tag_form_claim0" model="ir.actions.act_window.view">
-            <field name="sequence">1</field>
-            <field name="view_mode">form</field>
-	    <field name="view_id" ref="crm_claim_services_form"/>
+        <record model="ir.actions.act_window.view" id="crm_claim.action_crm_tag_tree_claim0">
+            <field name="sequence" eval="1"/>
+            <field name="view_mode">tree</field>
+            <field name="view_id" ref="crm_claim_services_tree"/>
             <field name="act_window_id" ref="crm_claim.crm_case_categ_claim0"/>
         </record>
 
+        <record id="crm_claim.action_crm_tag_form_claim0" model="ir.actions.act_window.view">
+            <field name="sequence">1</field>
+            <field name="view_mode">form</field>
+            <field name="view_id" ref="crm_claim_services_form"/>
+            <field name="act_window_id" ref="crm_claim.crm_case_categ_claim0"/>
+        </record>
     </data>
 </openerp>
