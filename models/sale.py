@@ -25,7 +25,7 @@ class SaleOrder(osv.osv):
 		'product': item.product_id.id,
 		'product_uom': item.product_uom.id,
 		'order_qty': item.product_uom_qty,
-	#	'tax_id': item.tax_id,
+		'tax_id': [(6, 0, [x.id for x in item.tax_id])] if item.tax_id else [],
 		'sale_price_unit': item.price_unit,
 		'route_id': item.route_id and [(4, line.route_id.id)] or [],
 		'state': 'draft',

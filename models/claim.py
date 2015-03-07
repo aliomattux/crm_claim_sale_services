@@ -24,12 +24,14 @@ class CrmClaim(osv.osv):
             types = type_obj.search(cr, uid, [('code', '=', 'incoming'), ('warehouse_id', '=', False)], context=context)
             if not types:
                 raise osv.except_osv(_('Error!'), _("Make sure you have at least an incoming picking type defined"))
+
         return types[0]
 
 
     def _get_return_journal(self, cr, uid, context=None):
         if context is None:
             context = {}
+
         user = self.pool.get('res.users').browse(cr, uid, uid, context=context)
         company_id = context.get('company_id', user.company_id.id)
         journal_obj = self.pool.get('account.journal')
@@ -96,6 +98,7 @@ class CrmClaim(osv.osv):
  #       self.message_post(cr, uid, [new_id], body=_("Quotation created"), context=ctx)
         return new_id
 
+
     #Pricelist hardcode is to bypass problem temporarily
     _defaults = {
         'name': lambda obj, cr, uid, context: '/',
@@ -145,6 +148,7 @@ class CrmClaim(osv.osv):
             if picktype.default_location_dest_id:
                 value.update({'location_id': picktype.default_location_dest_id.id})
             value.update({'related_location_id': picktype.default_location_dest_id and picktype.default_location_dest_id.id or False})
+
         return {'value': value}
 
 
@@ -154,6 +158,7 @@ class CrmClaim(osv.osv):
         price_unit = line.sale_price_unit
         if line.product_uom.id != line.product.uom_id.id:
             price_unit *= line.product_uom.factor / line.product.uom_id.factor
+
         res = []
         move_template = {
             'name': line.name or '',
@@ -285,6 +290,7 @@ class CrmClaim(osv.osv):
             'nodestroy': True,
         }
 
+
     def action_ship_create(self, cr, uid, ids, context=None):
         """Create the required procurements to supply sales order lines, also connecting
         the procurements to appropriate stock moves in order to bring the goods to the
@@ -308,7 +314,6 @@ class CrmClaim(osv.osv):
             for line in claim.claim_delivery_lines:
                 #Try to fix exception procurement (possible when after a shipping exception the user choose to recreate)
                 if line.procurement_ids:
-		    print 'Call Primary'
                     #first check them to see if they are in exception or not (one of the related moves is cancelled)
                     procurement_obj.check(cr, uid, [x.id for x in line.procurement_ids if x.state not in ['cancel', 'done']])
                     line.refresh()
@@ -317,7 +322,6 @@ class CrmClaim(osv.osv):
                     procurement_obj.reset_to_confirmed(cr, uid, proc_ids, context=context)
 		elif True:
 #                elif claim_line_obj.need_procurement(cr, uid, [line.id], context=context):
-		    print 'Call Secondary'
                     if (line.state == 'done') or not line.product:
                         continue
                     vals = self._prepare_claim_line_procurement(cr, uid, claim, line, group_id=group_id, context=context)
@@ -337,8 +341,22 @@ class CrmClaim(osv.osv):
                             val['state'] = 'manual'
                             break
                 claim.write(val)
-        return True
 
+        view_ref = self.pool.get('ir.model.data').get_object_reference(cr, uid, 'stock', 'view_picking_form')
+        view_id = view_ref and view_ref[1] or False,
+
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Delivery Order'),
+            'res_model': 'stock.picking',
+            'context': {},
+            'res_id': inv_id,
+            'view_type': 'form',
+            'view_mode': 'form',
+            'view_id': view_id,
+            'target': 'current',
+            'nodestroy': True,
+        }
 
 
 class CrmClaimLine(osv.osv):
@@ -352,6 +370,7 @@ class CrmClaimLine(osv.osv):
             if prod_obj.need_procurement(cr, uid, [line.product.id], context=context):
                 return True
         return False
+
 
     def onchange_product(self, cr, uid, ids, product, name, order_qty, product_uom, type, partner_id, warehouse_id, context=None):
         context = context or {}
@@ -406,7 +425,6 @@ class CrmClaimLine(osv.osv):
         # get unit price
 	warning = False
 
-
         if product.type == 'product':
             #determine if the product is MTO or not (for a further check)
             isMto = False
@@ -448,7 +466,6 @@ class CrmClaimLine(osv.osv):
         return {'value': result, 'domain': domain, 'warning': warning}
 
 
-
     def _amount_line(self, cr, uid, ids, field_name, arg, context=None):
         tax_obj = self.pool.get('account.tax')
         res = {}
@@ -472,7 +489,7 @@ class CrmClaimLine(osv.osv):
 	'order_qty': fields.float('Order Quantity'),
 	'product_uom': fields.many2one('product.uom', 'UOM'),
 	'discount': fields.float('Discount'),
-	'tax_id': fields.many2many('account.tax', 'crm_claim_line_tax', 'claim_line_id', 'tax_id', 'Taxes', readonly=True),
+	'tax_id': fields.many2many('account.tax', 'crm_claim_line_tax', 'claim_line_id', 'tax_id', 'Taxes'),
 	'sale_price_unit': fields.float('Paid Unit Price', digits=(12, 2)),
 #        'price_unit': fields.float('Unit Price', required=True, digits_compute= dp.get_precision('Product Price'), readonly=True, states={'draft': [('readonly', False)]}),
         'price_subtotal': fields.function(_amount_line, string='Subtotal', digits_compute= dp.get_precision('Account')),
@@ -492,13 +509,6 @@ class CrmClaimLine(osv.osv):
 	'state': 'draft',
     }
 
-
-class ProcurementOrder(osv.osv):
-    _inherit = 'procurement.order'
-    _columns = {
-        'claim_line_id': fields.many2one('crm.claim.line', 'CRM Claim Line'),
-        'claim_id': fields.related('claim_line_id', 'claim_id', type='many2one', relation='crm.claim', string='Claim'),
-    }
 
 
 class CrmClaimReason(osv.osv):

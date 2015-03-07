@@ -11,8 +11,7 @@
 		    <button name="button_create_claim_return" type="object" string="Create Return" attrs="{'invisible': [('claim_action', 'not in', ('return','exchange'))]}"/>
                     <button name="button_create_claim_refund" type="object" string="Create Refund" attrs="{'invisible': [('claim_action', 'not in', ('refund','return'))]}"/>
                     <button name="button_create_claim_invoice" type="object" string="Create Invoice" attrs="{'invisible': [('claim_action', '!=', 'exchange')]}" />
-                    <field name="stage_id" widget="statusbar" clickable="True"/>
-		    <field name="state" invisible="1" />
+		    <field name="state" widget="statusbar" />
                 </header>
                 <sheet string="Claims">
                     <h1>
@@ -45,7 +44,6 @@
                     <group colspan="4" col="4">
                         <notebook>
 			    <page string="Return/Refund Items" >
-				<field name="invoice_ids" invisible="1" />
 				<field name="claim_return_lines" widget="one2many_list" >
 				    <tree editable="bottom">
 					<field name="product" on_change="onchange_product(product, name, order_qty, product_uom, 'return', parent.partner_id, parent.warehouse, context)"/>
@@ -55,7 +53,7 @@
 					<field name="order_qty" />
 					<field name="product_uom" />
 					<field name="sale_price_unit" />
-					<field name="tax_id" />
+					<field name="tax_id" widget="many2many_tags" domain="[('parent_id','=',False),('type_tax_use','&lt;&gt;','purchase')]"/>
 					<field name="discount" />
 					<field name="state" invisible="1" />
 					<field name="price_subtotal" />
@@ -72,7 +70,7 @@
 					<field name="order_qty" />
 					<field name="product_uom" />
 					<field name="sale_price_unit" />
-					<field name="tax_id" />
+					<field name="tax_id" widget="many2many_tags" domain="[('parent_id','=',False),('type_tax_use','&lt;&gt;','purchase')]"/>
 					<field name="discount" />
 					<field name="state" invisible="1" />
 					<field name="price_subtotal" />
@@ -83,6 +81,16 @@
                                 <separator colspan="4" string="Claim/Action Description" groups="base.group_user"/>
                                 <field name="description" colspan="4" nolabel="1"/>
                             </page>
+			    <page string="Accounting">
+				<group string="Invoices" colspan="4">
+				    <field name="invoice_ids" widget="one2many_list" nolabel="1" >
+					<tree>
+					    <field name="number" />
+					    <field name="state" />
+					</tree>
+				    </field>
+				</group>
+			    </page>
                         </notebook>
                     </group>
                 </sheet>

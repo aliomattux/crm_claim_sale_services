@@ -96,8 +96,9 @@ class CrmClaim(osv.osv):
         if not journal_ids:
             raise osv.except_osv(
                 _('Error!'),
-                _('Define purchase journal for this company: "%s" (id:%d).') % \
+                _('Define Refund journal for this company: "%s" (id:%d).') % \
                     (claim.company_id.name, claim.company_id.id))
+
         return {
             'name': claim.name,
             'reference': claim.name,
