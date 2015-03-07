@@ -35,6 +35,7 @@ class SaleOrder(osv.osv):
 	     })
 
 	default_vals = {
+		'default_pricelist_id': sale.pricelist_id.id,
 		'default_warehouse': sale.warehouse_id.id,
 		'default_hidden_sale': sale.id,
 		'default_sale': sale.id,

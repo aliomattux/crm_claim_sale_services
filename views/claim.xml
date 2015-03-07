@@ -21,8 +21,6 @@
 		    <group>
                         <group>
 			    <field name="hidden_sale" invisible="1" />
-			    <field name="pricelist_id" invisible="1" />
-			    <field name="warehouse" invisible="1" />
 			    <field name="sale" attrs="{'invisible': [('sale', '=', False)]}"/>
 			    <field name="hidden_partner_id" invisible="1" />
 			    <field name="partner_id" attrs="{'readonly': [('sale', '!=', False)]}"/>
@@ -46,12 +44,12 @@
 			    <page string="Return/Refund Items" >
 				<field name="claim_return_lines" widget="one2many_list" >
 				    <tree editable="bottom">
-					<field name="product" on_change="onchange_product(product, name, order_qty, product_uom, 'return', parent.partner_id, parent.warehouse, context)"/>
+					<field name="product" on_change="onchange_product(parent.pricelist_id, product, name, order_qty, product_uom, 'return', True, parent.partner_id, parent.warehouse, context)"/>
 					<field name="name" />
 					<field name="route" invisible="1" />
 					<field name="type" invisible="1" />
 					<field name="order_qty" />
-					<field name="product_uom" />
+					<field name="product_uom" on_change="product_uom_change(parent.pricelist_id,product,name,'return',True,order_qty,product_uom,parent.partner_id,context)"/>
 					<field name="sale_price_unit" />
 					<field name="tax_id" widget="many2many_tags" domain="[('parent_id','=',False),('type_tax_use','&lt;&gt;','purchase')]"/>
 					<field name="discount" />
@@ -59,29 +57,49 @@
 					<field name="price_subtotal" />
 				    </tree>
 				</field>
+                                <group class="oe_subtotal_footer oe_right" colspan="2" name="return_total">
+                                    <field name="amount_return_untaxed" widget='monetary' options="{'currency_field': 'currency_id'}"/>
+                                    <field name="amount_return_tax" widget='monetary' options="{'currency_field': 'currency_id'}"/>
+                                    <div class="oe_subtotal_footer_separator oe_inline">
+                                        <label for="amount_return_total" />
+                                        <button name="button_dummy"
+                                        states="draft,sent" string="(update)" type="object" class="oe_edit_only oe_link"/>
+                                    </div>
+                                    <field name="amount_return_total" nolabel="1" class="oe_subtotal_footer_separator" widget='monetary' options="{'currency_field': 'currency_id'}"/>
+                                </group>
 			    </page>
 			    <page string="Deliver/Exchanged for Items" attrs="{'invisible': [('claim_action', '!=', 'exchange')]}">
 				<field name="claim_delivery_lines" widget="one2many_list" >
 				    <tree editable="bottom">
-					<field name="product" on_change="onchange_product(product, name, order_qty, product_uom, 'delivery', parent.partner_id, parent.warehouse, context)"/>
+					<field name="product" on_change="onchange_product(parent.pricelist_id, product, name, order_qty, product_uom, 'delivery', True, parent.partner_id, parent.warehouse, context)"/>
 					<field name="name" />
 					<field name="route" invisible="1" />
 					<field name="type" invisible="1" />
 					<field name="order_qty" />
-					<field name="product_uom" />
-					<field name="sale_price_unit" />
+					<field name="product_uom" on_change="product_uom_change(parent.pricelist_id,product,name,'delivery',True,order_qty,product_uom,parent.partner_id,context)"/>
+					<field name="sale_price_unit" string="Unit Price" />
 					<field name="tax_id" widget="many2many_tags" domain="[('parent_id','=',False),('type_tax_use','&lt;&gt;','purchase')]"/>
 					<field name="discount" />
 					<field name="state" invisible="1" />
 					<field name="price_subtotal" />
 				    </tree>
 				</field>
+                                <group class="oe_subtotal_footer oe_right" colspan="2" name="delivery_total">
+                                    <field name="amount_charge_untaxed" widget='monetary' options="{'currency_field': 'currency_id'}"/>
+                                    <field name="amount_charge_tax" widget='monetary' options="{'currency_field': 'currency_id'}"/>
+                                    <div class="oe_subtotal_footer_separator oe_inline">
+                                        <label for="amount_charge_total" />
+                                        <button name="button_dummy_new"
+                                        states="draft,sent" string="(update)" type="object" class="oe_edit_only oe_link"/>
+                                    </div>
+                                    <field name="amount_charge_total" nolabel="1" class="oe_subtotal_footer_separator" widget='monetary' options="{'currency_field': 'currency_id'}"/>
+                                </group>
 			    </page>
                             <page string="Claim Description">
                                 <separator colspan="4" string="Claim/Action Description" groups="base.group_user"/>
                                 <field name="description" colspan="4" nolabel="1"/>
                             </page>
-			    <page string="Accounting">
+			    <page string="Invoicing">
 				<group string="Invoices" colspan="4">
 				    <field name="invoice_ids" widget="one2many_list" nolabel="1" >
 					<tree>
@@ -89,6 +107,16 @@
 					    <field name="state" />
 					</tree>
 				    </field>
+				</group>
+			    </page>
+			    <page string="Options">
+				<group>
+				    <field name="warehouse" />
+				    <field name="picking_type_id" />
+				</group>
+				<group>
+				    <field name="pricelist_id" on_change="onchange_pricelist_id(pricelist_id,claim_return_lines)"/>
+				    <field name="currency_id" />
 				</group>
 			    </page>
                         </notebook>

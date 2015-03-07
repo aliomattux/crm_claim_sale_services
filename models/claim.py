@@ -13,6 +13,19 @@ CLAIM_SEQ_DICT = {'return': 'crm.claim.return',
 class CrmClaim(osv.osv):
     _inherit = 'crm.claim'
 
+    def onchange_pricelist_id(self, cr, uid, ids, pricelist_id, lines, context=None):
+        context = context or {}
+        if not pricelist_id:
+            return {}
+        value = {
+            'currency_id': self.pool.get('product.pricelist').browse(cr, uid, pricelist_id, context=context).currency_id.id
+        }
+
+        if not lines or lines == [(6, 0, [])]:
+            return {'value': value}
+
+        return {'value': value}
+
 
     def _get_picking_in(self, cr, uid, context=None):
         obj_data = self.pool.get('ir.model.data')
@@ -41,6 +54,69 @@ class CrmClaim(osv.osv):
         return res and res[0] or False
 
 
+    def _amount_line_tax(self, cr, uid, line, context=None):
+        val = 0.0
+        for c in self.pool.get('account.tax').compute_all(cr, uid, line.tax_id, line.sale_price_unit * (1-(line.discount or 0.0)/100.0), line.order_qty, line.product, line.claim.partner_id)['taxes']:
+            val += c.get('amount', 0.0)
+        return val
+
+
+    def _amount_return_all_wrapper(self, cr, uid, ids, field_name, arg, context=None):
+        """ Wrapper because of direct method passing as parameter for function fields """
+        return self._amount_return_all(cr, uid, ids, field_name, arg, context=context)
+
+
+    def _amount_return_all(self, cr, uid, ids, field_name, arg, context=None):
+        cur_obj = self.pool.get('res.currency')
+        res = {}
+        for claim in self.browse(cr, uid, ids, context=context):
+            res[claim.id] = {
+                'amount_return_untaxed': 0.0,
+                'amount_return_tax': 0.0,
+                'amount_return_total': 0.0,
+            }
+            val = val1 = 0.0
+            cur = claim.pricelist_id.currency_id
+            for line in claim.claim_return_lines:
+                val1 += line.price_subtotal
+                val += self._amount_line_tax(cr, uid, line, context=context)
+            res[claim.id]['amount_return_tax'] = cur_obj.round(cr, uid, cur, val)
+            res[claim.id]['amount_return_untaxed'] = cur_obj.round(cr, uid, cur, val1)
+            res[claim.id]['amount_return_total'] = res[claim.id]['amount_return_untaxed'] + res[claim.id]['amount_return_tax']
+        return res
+
+
+    def _amount_charge_all_wrapper(self, cr, uid, ids, field_name, arg, context=None):
+        """ Wrapper because of direct method passing as parameter for function fields """
+        return self._amount_charge_all(cr, uid, ids, field_name, arg, context=context)
+
+
+    def _amount_charge_all(self, cr, uid, ids, field_name, arg, context=None):
+        cur_obj = self.pool.get('res.currency')
+        res = {}
+        for claim in self.browse(cr, uid, ids, context=context):
+            res[claim.id] = {
+                'amount_charge_untaxed': 0.0,
+                'amount_charge_tax': 0.0,
+                'amount_charge_total': 0.0,
+            }
+            val = val1 = 0.0
+            cur = claim.pricelist_id.currency_id
+            for line in claim.claim_delivery_lines:
+                val1 += line.price_subtotal
+                val += self._amount_line_tax(cr, uid, line, context=context)
+            res[claim.id]['amount_charge_tax'] = cur_obj.round(cr, uid, cur, val)
+            res[claim.id]['amount_charge_untaxed'] = cur_obj.round(cr, uid, cur, val1)
+            res[claim.id]['amount_charge_total'] = res[claim.id]['amount_charge_untaxed'] + res[claim.id]['amount_charge_tax']
+        return res
+
+
+    def _get_claim(self, cr, uid, ids, context=None):
+        result = {}
+        for line in self.pool.get('crm.claim.line').browse(cr, uid, ids, context=context):
+            result[line.claim.id] = True
+        return result.keys()
+
     _columns = {
 	'name': fields.char('Name', required=True),
 	'pricelist_id': fields.many2one('product.pricelist', 'Pricelist', required=True, readonly=True, states={'draft': [('readonly', False)], 'sent': [('readonly', False)]}),
@@ -57,19 +133,58 @@ class CrmClaim(osv.osv):
 	'partner_shipping_address': fields.many2one('res.partner', 'Shipping Address'),
         'picking_type_id': fields.many2one('stock.picking.type', 'Deliver To', help="This will determine picking type of incoming shipment"),
         'state': fields.selection(
-                [('cancel', 'Cancelled'),('draft', 'Draft'),('confirmed', 'Confirmed'),('exception', 'Exception'),('done', 'Done')],
+                [('cancel', 'Cancelled'),('draft', 'Draft'),('process', 'Processing'),('exception', 'Exception'),('done', 'Done')],
                 'Status', required=True, readonly=True, copy=False,
-                help='* The \'Draft\' status is set when the related sales order in draft status. \
-                    \n* The \'Confirmed\' status is set when the related sales order is confirmed. \
-                    \n* The \'Exception\' status is set when the related sales order is set as exception. \
-                    \n* The \'Done\' status is set when the sales order line has been picked. \
-                    \n* The \'Cancelled\' status is set when a user cancel the sales order related.'),
+                help='* The \'Draft\' status is set when the claim is new and has not been processed. \
+                    \n* The \'Processing\' status is set when the claim is in process. \
+                    \n* The \'Exception\' status is set when there is a hold/problem with the claim. \
+                    \n* The \'Done\' status is set when claim is complete. \
+                    \n* The \'Cancelled\' status is set when the claim is canceled.'),
 	'sale': fields.many2one('sale.order', 'Created From Sale', readonly=True),
+	'currency_id': fields.related('pricelist_id', 'currency_id', type="many2one", relation="res.currency", string="Currency", required=True),
 	'claim_reason': fields.many2one('crm.claim.reason', 'Reason', required=True),
 	'claim_action': fields.selection([('return', 'Return'),
 					  ('refund', 'Refund Only'),
 					  ('exchange', 'Exchange')], 
 	'Action Taken', required=True),
+
+        'amount_return_untaxed': fields.function(_amount_return_all_wrapper, digits_compute=dp.get_precision('Account'), string='Untaxed Amount',
+            store={
+                'crm.claim': (lambda self, cr, uid, ids, c={}: ids, ['claim_return_lines'], 10),
+                'crm.claim.line': (_get_claim, ['sale_price_unit', 'tax_id', 'discount', 'order_qty'], 10),
+            },
+            multi='sums', help="The amount without tax.", track_visibility='always'),
+        'amount_return_tax': fields.function(_amount_return_all_wrapper, digits_compute=dp.get_precision('Account'), string='Taxes',
+            store={
+                'crm.claim': (lambda self, cr, uid, ids, c={}: ids, ['claim_return_lines'], 10),
+                'crm.claim.line': (_get_claim, ['sale_price_unit', 'tax_id', 'discount', 'order_qty'], 10),
+            },
+            multi='sums', help="The tax amount."),
+        'amount_return_total': fields.function(_amount_return_all_wrapper, digits_compute=dp.get_precision('Account'), string='Return/Refund Total',
+            store={
+                'crm.claim': (lambda self, cr, uid, ids, c={}: ids, ['claim_return_lines'], 10),
+                'crm.claim.line': (_get_claim, ['sale_price_unit', 'tax_id', 'discount', 'order_qty'], 10),
+            },
+            multi='sums', help="The total amount."),
+        'amount_charge_untaxed': fields.function(_amount_charge_all_wrapper, digits_compute=dp.get_precision('Account'), string='Untaxed Amount',
+            store={
+                'crm.claim': (lambda self, cr, uid, ids, c={}: ids, ['claim_delivery_lines'], 10),
+                'crm.claim.line': (_get_claim, ['sale_price_unit', 'tax_id', 'discount', 'order_qty'], 10),
+            },
+            multi='sums', help="The amount without tax.", track_visibility='always'),
+        'amount_charge_tax': fields.function(_amount_charge_all_wrapper, digits_compute=dp.get_precision('Account'), string='Taxes',
+            store={
+                'crm.claim': (lambda self, cr, uid, ids, c={}: ids, ['claim_delivery_lines'], 10),
+                'crm.claim.line': (_get_claim, ['sale_price_unit', 'tax_id', 'discount', 'order_qty'], 10),
+            },
+            multi='sums', help="The tax amount."),
+        'amount_charge_total': fields.function(_amount_charge_all_wrapper, digits_compute=dp.get_precision('Account'), string='Total',
+            store={
+                'crm.claim': (lambda self, cr, uid, ids, c={}: ids, ['claim_delivery_lines'], 10),
+                'crm.claim.line': (_get_claim, ['sale_price_unit', 'tax_id', 'discount', 'order_qty'], 10),
+            },
+            multi='sums', help="The total amount."),
+
     }
 
 
@@ -372,7 +487,22 @@ class CrmClaimLine(osv.osv):
         return False
 
 
-    def onchange_product(self, cr, uid, ids, product, name, order_qty, product_uom, type, partner_id, warehouse_id, context=None):
+    def product_uom_change(self, cr, uid, ids, pricelist, product_id, name, type, update_tax, qty=0,
+            product_uom=False, partner_id=False, context=None):
+
+        context = context or {}
+        lang = context and context['lang']
+        if not product_uom:
+            return {'value': {'sale_price_unit': 0.0, 'product_uom' : product_uom or False}}
+
+        return self.onchange_product(cr, uid, ids, pricelist, product_id,
+                order_qty=qty, product_uom=product_uom, name=name,
+                partner_id=partner_id, update_tax=update_tax,
+		warehouse_id=False, type=type,
+                context=context)
+
+
+    def onchange_product(self, cr, uid, ids, pricelist, product_id, name, order_qty, product_uom, type, update_tax, partner_id, warehouse_id, context=None):
         context = context or {}
         lang = context.get('lang', False)
 	flag = False
@@ -384,7 +514,7 @@ class CrmClaimLine(osv.osv):
         lang = partner.lang
         context_partner = {'lang': lang, 'partner_id': partner_id}
 	warehouse_obj = self.pool.get('stock.warehouse')
-        if not product:
+        if not product_id:
             return {'value': {'order_qty': order_qty}, 'domain': {'product_uom': []}}
 
 #        if not date_order:
@@ -392,7 +522,7 @@ class CrmClaimLine(osv.osv):
 
         result = {'type': type}
         warning_msgs = ''
-        product = product_obj.browse(cr, uid, product, context=context_partner)
+        product = product_obj.browse(cr, uid, product_id, context=context_partner)
 
         uom2 = False
         if product_uom:
@@ -405,8 +535,8 @@ class CrmClaimLine(osv.osv):
   #          fpos = partner.property_account_position or False
    #     else:
     #        fpos = self.pool.get('account.fiscal.position').browse(cr, uid, fiscal_position)
-     #   if update_tax: #The quantity only have changed
-      #      result['tax_id'] = self.pool.get('account.fiscal.position').map_tax(cr, uid, fpos, product_obj.taxes_id)
+        if update_tax: #The quantity only have changed
+            result['tax_id'] = self.pool.get('account.fiscal.position').map_tax(cr, uid, False, product.taxes_id)
 
         if not flag:
             result['name'] = self.pool.get('product.product').name_get(cr, uid, [product.id], context=context_partner)[0][1]
@@ -424,6 +554,24 @@ class CrmClaimLine(osv.osv):
             uom2 = product.uom_id
         # get unit price
 	warning = False
+
+        if not pricelist:
+            warn_msg = _('You have to select a pricelist or a customer in the sales form !\n'
+                    'Please set one before choosing a product.')
+            warning_msgs += _("No Pricelist ! : ") + warn_msg +"\n\n"
+        else:
+            price = self.pool.get('product.pricelist').price_get(cr, uid, [pricelist],
+                    product.id, order_qty or 1.0, partner_id, {
+                        'uom': product_uom or result.get('product_uom'),
+                     #   'date': date_order,
+                        })[pricelist]
+            if price is False:
+                warn_msg = _("Cannot find a pricelist line matching this product and quantity.\n"
+                        "You have to change either the product, the quantity or the pricelist.")
+
+                warning_msgs += _("No valid pricelist line found ! :") + warn_msg +"\n\n"
+            else:
+                result.update({'sale_price_unit': price})
 
         if product.type == 'product':
             #determine if the product is MTO or not (for a further check)
