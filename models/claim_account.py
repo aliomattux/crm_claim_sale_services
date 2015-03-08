@@ -1,3 +1,6 @@
+# Odoo Copyright added because a lot of core code is recycled for this module
+# Copyright (C) 2004-2010 Tiny SPRL (<http://tiny.be>)
+
 from openerp.osv import osv, fields
 from openerp.tools.translate import _
 from datetime import datetime, timedelta
