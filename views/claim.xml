@@ -132,7 +132,7 @@
                                 <separator colspan="4" string="Claim/Action Description" groups="base.group_user"/>
                                 <field name="description" colspan="4" nolabel="1"/>
                             </page>
-			    <page string="Invoicing">
+			    <page string="Invoice/Delivery">
 				<group string="Invoices" colspan="4">
 				    <field name="invoice_ids" widget="one2many_list" nolabel="1" >
 					<tree>
@@ -143,6 +143,14 @@
 					</tree>
 				    </field>
 				</group>
+                                <group string="Return/Delivery Orders" colspan="4">
+                                    <field name="pickings" widget="one2many_list" nolabel="1" >
+                                        <tree>
+                                            <field name="name" />
+                                            <field name="state" />
+                                        </tree>
+                                    </field>
+                                </group>
 			    </page>
 			    <page string="Options">
 				<group>

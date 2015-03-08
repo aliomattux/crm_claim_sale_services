@@ -119,6 +119,7 @@ class CrmClaim(osv.osv):
 
     _columns = {
 	'name': fields.char('Name', required=True),
+	'pickings': fields.one2many('stock.picking', 'claim', 'Return/Delivery Orders'),
 	'pricelist_id': fields.many2one('product.pricelist', 'Pricelist', required=True, readonly=True, states={'draft': [('readonly', False)], 'sent': [('readonly', False)]}),
 	'user_id': fields.many2one('res.users', 'CS Representative', track_visibility='always'),
 	'warehouse': fields.many2one('stock.warehouse', 'Warehouse'),

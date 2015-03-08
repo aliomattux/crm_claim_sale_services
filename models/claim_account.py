@@ -101,6 +101,7 @@ class CrmClaim(osv.osv):
 
         return {
             'name': claim.name,
+	    'claim': claim.id,
             'reference': claim.name,
             'account_id': claim.partner_id.property_account_payable.id,
             'type': 'out_refund',
@@ -226,19 +227,16 @@ class CrmClaim(osv.osv):
             partner_currency[claim.partner_id.id] = currency_id
             lines = []
             for line in claim.claim_delivery_lines:
-		print 'STATE', line.state
                 if line.invoiced:
-		    print 'Invoiced'
                     continue
                 elif (line.state in states):
-		    print 'Catch'
                     lines.append(line.id)
 
             created_lines = claim_line_obj.charge_invoice_line_create(cr, uid, lines)
 
             if created_lines:
                 invoices.setdefault(claim.partner_billing_address.id or claim.partner_id.id, []).append((claim, created_lines))
-	    print 'No Lines'
+
         if not invoices:
             for claim in self.browse(cr, uid, ids, context=context):
                 for i in claim.invoice_ids:
@@ -296,6 +294,7 @@ class CrmClaim(osv.osv):
 
         invoice_vals = {
             'name': claim.name,
+	    'claim': claim.id,
             'origin': claim.name,
             'type': 'out_invoice',
             'reference': claim.name,

@@ -10,6 +10,7 @@
     'data': ['views/sale.xml',
 	     'views/claim.xml',
 	     'views/stock.xml',
+	     'views/account_invoice.xml',
 	     'data/claim_service_sequence.xml',
     ],
     'test': [
