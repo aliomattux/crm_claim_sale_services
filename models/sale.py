@@ -5,13 +5,7 @@ class SaleOrder(osv.osv):
     _inherit = 'sale.order'
     _columns = {
 	'claims': fields.one2many('crm.claim', 'sale', 'Claim'),
-        'product_policy': fields.selection([('user_select', 'User Select'),
-                                        ('from_delivery', 'Return from Delivered Goods'),
-                                        ('from_sale', 'Return from Sold Goods'),
-        ], 'Product Policy', readonly=True),
-        'strict_return': fields.boolean('Strict Return', readonly=True, help="""If you want to restrict what \
-                can be returned based on the product policy. Note: This does not apply to \
-                User Select Policy"""),
+	'claim_invoices': fields.many2many('account.invoice', 'claim_sale_order_invoice_rel', 'order_id', 'invoice_id', 'Refund/Claim Invoices', readonly=True, copy=False),
     }
 
     def button_create_claim(self, cr, uid, ids, context=None):

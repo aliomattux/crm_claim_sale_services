@@ -154,6 +154,9 @@ class CrmClaim(osv.osv):
 
             # Link this new invoice to related purchase order
             claim.write({'invoice_ids': [(4, inv_id)]})
+	    if claim.sale:
+		claim.sale.write({'claim_invoices': [(4, inv_id)]})
+
             res = inv_id
 
         view_ref = self.pool.get('ir.model.data').get_object_reference(cr, uid, 'account', 'invoice_form')
@@ -248,6 +251,9 @@ class CrmClaim(osv.osv):
                 res = self._make_charge_invoice(cr, uid, claim, il, context=context)
                 invoice_ids.append(res)
 #                self.write(cr, uid, [claim.id], {'state': 'progress'})
+		if claim.sale:
+                    cr.execute('insert into claim_sale_order_invoice_rel (order_id,invoice_id) values (%s,%s)', (claim.sale.id, res))
+
                 cr.execute('insert into crm_claim_invoice_rel (claim_id,invoice_id) values (%s,%s)', (claim.id, res))
                 self.invalidate_cache(cr, uid, ['invoice_ids'], [claim.id], context=context)
 
