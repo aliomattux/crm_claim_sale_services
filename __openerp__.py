@@ -3,7 +3,7 @@
     'version': '1.1',
     'author': 'Kyle Waid',
     'category': 'Sales Management',
-    'depends': ['crm_claim', 'sale'],
+    'depends': ['crm_claim', 'sale', 'sale_stock'],
     'website': 'https://www.gcotech.com',
     'description': """ 
     """,
