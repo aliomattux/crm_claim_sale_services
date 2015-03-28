@@ -464,18 +464,18 @@ class CrmClaim(osv.osv):
         view_ref = self.pool.get('ir.model.data').get_object_reference(cr, uid, 'stock', 'view_picking_form')
         view_id = view_ref and view_ref[1] or False,
 
-        return {
-            'type': 'ir.actions.act_window',
-            'name': _('Delivery Order'),
-            'res_model': 'stock.picking',
-            'context': {},
-            'res_id': inv_id,
-            'view_type': 'form',
-            'view_mode': 'form',
-            'view_id': view_id,
-            'target': 'current',
-            'nodestroy': True,
-        }
+      #  return {
+       #     'type': 'ir.actions.act_window',
+        #    'name': _('Delivery Order'),
+         #   'res_model': 'stock.picking',
+          #  'context': {},
+   #         'res_id': inv_id,
+    #        'view_type': 'form',
+     #       'view_mode': 'form',
+      #      'view_id': view_id,
+       #     'target': 'current',
+        #    'nodestroy': True,
+      #  }
 
 
 class CrmClaimLine(osv.osv):
@@ -601,13 +601,13 @@ class CrmClaimLine(osv.osv):
             #check if product is available, and if not: raise a warning, but do this only for products that aren't processed in MTO
             if not isMto:
                 uom_record = False
-                if uom:
-                    uom_record = product_uom_obj.browse(cr, uid, uom, context=context)
+                if product_uom:
+                    uom_record = product_uom_obj.browse(cr, uid, product_uom, context=context)
                     if product.uom_id.category_id.id != uom_record.category_id.id:
                         uom_record = False
                 if not uom_record:
                     uom_record = product.uom_id
-                compare_qty = float_compare(product.virtual_available, qty, precision_rounding=uom_record.rounding)
+                compare_qty = float_compare(product.virtual_available, order_qty, precision_rounding=uom_record.rounding)
                 if compare_qty == -1:
                     warn_msg = _('You plan to sell %.2f %s but you only have %.2f %s available !\nThe real stock is %.2f %s. (without reservations)') % \
                         (qty, uom_record.name,
