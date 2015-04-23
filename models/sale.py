@@ -8,6 +8,24 @@ class SaleOrder(osv.osv):
 	'claim_invoices': fields.many2many('account.invoice', 'claim_sale_order_invoice_rel', 'order_id', 'invoice_id', 'Refund/Claim Invoices', readonly=True, copy=False),
     }
 
+    def get_default_claim_vals(self, cr, uid, sale, items, context=None):
+        default_vals = {
+                'default_pricelist_id': sale.pricelist_id.id,
+                'default_warehouse': sale.warehouse_id.id,
+                'default_hidden_sale': sale.id,
+                'default_sale': sale.id,
+                'default_partner_id': sale.partner_id.id,
+                'default_claim_return_lines': items,
+                'default_hidden_partner_id': sale.partner_id.id,
+                'default_hidden_partner_billing_address': sale.partner_invoice_id.id,
+                'default_hidden_partner_shipping_address': sale.partner_shipping_id.id,
+                'default_partner_billing_address': sale.partner_invoice_id.id,
+                'default_partner_shipping_address': sale.partner_shipping_id.id,
+        }
+
+	return default_vals
+
+
     def button_create_claim(self, cr, uid, ids, context=None):
         view_ref = self.pool.get('ir.model.data').get_object_reference(cr, uid, 'crm_claim_sale_services', 'crm_claim_services_form')
         view_id = view_ref and view_ref[1] or False,
@@ -28,19 +46,7 @@ class SaleOrder(osv.osv):
 		'sequence': item.sequence
 	     })
 
-	default_vals = {
-		'default_pricelist_id': sale.pricelist_id.id,
-		'default_warehouse': sale.warehouse_id.id,
-		'default_hidden_sale': sale.id,
-		'default_sale': sale.id,
-		'default_partner_id': sale.partner_id.id,
-		'default_claim_return_lines': items,
-		'default_hidden_partner_id': sale.partner_id.id,
-		'default_hidden_partner_billing_address': sale.partner_invoice_id.id,
-		'default_hidden_partner_shipping_address': sale.partner_shipping_id.id,
-		'default_partner_billing_address': sale.partner_invoice_id.id,
-		'default_partner_shipping_address': sale.partner_shipping_id.id,
-	}
+	default_vals = self.get_default_claim_vals(cr, uid, sale, items)
 
         return {
             'type': 'ir.actions.act_window',
