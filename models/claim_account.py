@@ -46,17 +46,16 @@ class CrmClaim(osv.osv):
         fiscal_obj = self.pool.get('account.fiscal.position')
         property_obj = self.pool.get('ir.property')
         if line.product:
-            acc_id = line.product.property_account_expense.id
+            acc_id = line.product.property_account_income.id
             if not acc_id:
-                acc_id = line.product.categ_id.property_account_expense_categ.id
+                acc_id = line.product.categ_id.property_account_income_categ.id
             if not acc_id:
-                raise osv.except_osv(_('Error!'), _('Define an expense account for this product: "%s" (id:%d).') % (line.product.name, line.product.id,))
+                raise osv.except_osv(_('Error!'), _('Define an income account for this product: "%s" (id:%d).') % (line.product.name, line.product.id,))
         else:
-            acc_id = property_obj.get(cr, uid, 'property_account_expense_categ', 'product.category', context=context).id
+            acc_id = property_obj.get(cr, uid, 'property_account_income_categ', 'product.category', context=context).id
 
 	fpos = False
 #        fpos = line.claim.fiscal_position or False
-
         return fiscal_obj.map_account(cr, uid, fpos, acc_id)
 
 
@@ -106,7 +105,7 @@ class CrmClaim(osv.osv):
             'name': claim.name,
 	    'claim': claim.id,
             'reference': claim.name,
-            'account_id': claim.partner_id.property_account_payable.id,
+	    'account_id': claim.partner_id.property_account_receivable.id,
             'type': 'out_refund',
             'partner_id': claim.partner_id.id,
  #           'currency_id': claim.currency_id.id,
