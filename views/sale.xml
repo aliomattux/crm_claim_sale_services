@@ -9,8 +9,8 @@
 		    <field name="returned_from" attrs="{'invisible': [('returned_from', '=', False)]}" />
 		</field>-->
                 <button name="action_view_invoice" position="after" >
-		    <button name="button_create_claim" string="Create Claim" type="object" class="oe_highlight" attrs="{'invisible': [('claims', '=', False)]}"/>
-		    <button name="button_view_claim" string="View Claim" type="object" class="oe_highlight" attrs="{'invisible': [('claims', '!=', False)]}"/>
+		    <button name="button_create_claim" string="Create Claim" type="object" class="oe_highlight" attrs="{'invisible': [('state', 'in', ('draft','cancel'))]}"/>
+<!--		    <button name="button_view_claim" string="View Claim" type="object" class="oe_highlight" attrs="{'invisible': [('claims', '=', False)]}"/> -->
                 </button>
 		<page string="Other Information" position="before">
 		    <page string="Claims">
