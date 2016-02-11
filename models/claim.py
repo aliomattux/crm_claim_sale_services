@@ -16,6 +16,9 @@ CLAIM_SEQ_DICT = {'return': 'crm.claim.return',
 class CrmClaim(osv.osv):
     _inherit = 'crm.claim'
 
+    def button_dummy(self, cr, uid, ids, context=None):
+        return True
+
     def onchange_pricelist_id(self, cr, uid, ids, pricelist_id, lines, context=None):
         context = context or {}
         if not pricelist_id:
@@ -196,8 +199,7 @@ class CrmClaim(osv.osv):
         if context is None:
             context = {}
         if vals.get('name', '/') == '/':
-            vals['name'] = self.pool.get('ir.sequence').get(cr, uid, \
-		CLAIM_SEQ_DICT[vals['claim_action']]) or '/'
+            vals['name'] = self.pool.get('ir.sequence').get(cr, uid, 'crm.claim.return') or '/'
 
 	#Bad code required to support readonly field user experience
 	#Bad design requires bad code to solve simple problem supported in other software :(
@@ -543,7 +545,8 @@ class CrmClaimLine(osv.osv):
             result['tax_id'] = self.pool.get('account.fiscal.position').map_tax(cr, uid, False, product.taxes_id)
 
         if not flag:
-            result['name'] = self.pool.get('product.product').name_get(cr, uid, [product.id], context=context_partner)[0][1]
+#            result['name'] = self.pool.get('product.product').name_get(cr, uid, [product.id], context=context_partner)[0][1]
+	    result['name'] = product.name
             if product.description_sale:
                 result['name'] += '\n'+product.description_sale
 

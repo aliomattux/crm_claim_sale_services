@@ -14,6 +14,9 @@
                 </button>
 		<page string="Other Information" position="before">
 		    <page string="Claims">
+			<group>
+			    <field name="allow_additional_claim" />
+			</group>
 			<group string="Claims" >
 			    <field name="claims" widget="one2many_list" readonly="1" nolabel="1" >
 			        <tree>

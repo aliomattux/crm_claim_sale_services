@@ -107,6 +107,7 @@ class CrmClaim(osv.osv):
             'reference': claim.name,
 	    'account_id': claim.partner_id.property_account_receivable.id,
             'type': 'out_refund',
+	    'sale_order': claim.sale.id if claim.sale else False,
             'partner_id': claim.partner_id.id,
  #           'currency_id': claim.currency_id.id,
             'journal_id': len(journal_ids) and journal_ids[0] or False,
