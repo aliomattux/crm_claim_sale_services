@@ -7,9 +7,10 @@
             <field name="arch" type="xml">
                 <field name="name" position="after">
 		    <field name="sale" string="Sale Order" />
-		    <filter string="Returns" domain="[('claim_action', '=', 'return')]" />
+		    <filter string="Returns" domain="[('claim_action', 'in', ('return', 'instore_return'))]" />
 		    <filter string="Exchanges" domain="[('claim_action', '=', 'exchange')]" />
 		    <filter name="Refunds" domain="[('claim_action', '=', 'refund')]" />
+		    <filter name="Vendor Returns" domain="[('return_to_vendor', '=', 'True')]" />
 		</field>
             </field>
         </record>
@@ -19,8 +20,13 @@
             <field name="model">crm.claim</field>
             <field name="arch" type="xml">
                 <tree string="Claims">
+		    <field name="action_next" position="replace" />
+		    <field name="write_date" />
+		    <field name="write_uid" />
 		    <field name="claim_action" />
                     <field name="name"/>
+		    <field name="return_to_vendor" />
+		    <field name="vendor" />
 		    <field name="claim_reason" />
                     <field name="partner_id"/>
 		    <field name="sale" />
@@ -40,9 +46,9 @@
             <field name="arch" type="xml">
                 <form string="Claim">
                 <header>
-		    <button name="button_create_claim_delivery_order" type="object" string="Create Delivery Order" attrs="{'invisible': [('claim_action', '!=', 'exchange')]}"/>
-		    <button name="button_create_claim_return" type="object" string="Create Return" attrs="{'invisible': [('claim_action', 'not in', ('return','exchange'))]}"/>
-                    <button name="button_create_claim_refund" type="object" string="Create Refund" attrs="{'invisible': [('claim_action', 'not in', ('refund','return', 'exchange'))]}"/>
+		    <button name="button_create_claim_delivery_order" type="object" string="Create Delivery Order" attrs="{'invisible': [('claim_action', 'not in', ('send_out','exchange'))]}"/>
+		    <button name="button_create_claim_return" type="object" string="Create Return" attrs="{'invisible': [('claim_action', 'not in', ('return','instore_return', 'exchange'))]}"/>
+                    <button name="button_create_claim_refund" type="object" string="Create Refund" attrs="{'invisible': [('claim_action', 'not in', ('refund','return', 'instore_return', 'exchange'))]}"/>
                     <button name="button_create_claim_invoice" type="object" string="Create Invoice" attrs="{'invisible': [('claim_action', '!=', 'exchange')]}" />
 		    <field name="state" widget="statusbar" />
                 </header>
@@ -64,13 +70,17 @@
                         <group groups="base.group_user">
                             <field name="user_id" context="{'default_groups_ref': ['base.group_user', 'base.group_partner_manager', 'base.group_sale_salesman_all_leads']}"/>
                             <field name="create_date" readonly="1" string="Created On"/>
+			    <field name="write_date" readonly="1" />
+			    <field name="write_uid" readonly="1" />
                             <field name="section_id" groups="base.group_multi_salesteams"/>
 			    <field name="partner_shipping_address" attrs="{'readonly': [('sale', '!=', False)]}" context="{'show_address': 1}" options='{"always_reload": True}'/>
                         </group>
 		    </group>
 		    <group colspan="4" col="4" string="Cause/Actions">
+			<field name="return_to_vendor" />
+			<newline/>
                         <field name="claim_reason" />
-                        <field name="claim_action" />
+                        <field name="claim_action" attrs="{'readonly': [('state', '!=', 'draft')]}"/>
 		    </group>
                     <group colspan="4" col="4">
                         <notebook>
@@ -101,7 +111,7 @@
                                     <field name="amount_return_total" nolabel="1" class="oe_subtotal_footer_separator" widget='monetary' options="{'currency_field': 'currency_id'}"/>
                                 </group>
 			    </page>
-			    <page string="Deliver/Exchanged for Items" attrs="{'invisible': [('claim_action', '!=', 'exchange')]}">
+			    <page string="Deliver/Exchanged for Items" attrs="{'invisible': [('claim_action', 'not in', ('send_out', 'exchange'))]}">
 				<field name="claim_delivery_lines" widget="one2many_list" >
 				    <tree editable="bottom">
 					<field name="product" on_change="onchange_product(parent.pricelist_id, product, name, order_qty, product_uom, 'delivery', True, parent.partner_id, parent.warehouse, context)"/>
@@ -127,6 +137,17 @@
                                     </div>
                                     <field name="amount_charge_total" nolabel="1" class="oe_subtotal_footer_separator" widget='monetary' options="{'currency_field': 'currency_id'}"/>
                                 </group>
+			    </page>
+			    <page string="Vendor RMA" attrs="{'invisible': [('return_to_vendor', '=', False)]}">
+				<group string="RMA Details">
+				    <field name="vendor_return_state" />
+				    <field name="vendor" />
+				    <field name="vendor_rma_number" />
+				</group>
+				<newline/>
+				<group string="Vendor Reject Reason" attrs="{'invisible': [('vendor_return_state', '!=', 'rejected')]}">
+				    <field name="vendor_return_reject_reason" nolabel="1"/>
+				</group>
 			    </page>
                             <page string="Claim Description">
                                 <separator colspan="4" string="Claim/Action Description" groups="base.group_user"/>

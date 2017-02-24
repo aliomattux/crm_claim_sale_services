@@ -33,10 +33,12 @@ class CrmClaim(osv.osv):
     }
 
     def button_create_claim_refund(self, cr, uid, ids, context=None):
+	self.write(cr, uid, ids, {'state': 'process'})
 	return self.action_refund_create(cr, uid, ids, context=context)
 
 
     def button_create_claim_invoice(self, cr, uid, ids, context=None):
+	self.write(cr, uid, ids, {'state': 'process'})
 	return self.action_charge_invoice_create(cr, uid, ids, context=context)
 
 

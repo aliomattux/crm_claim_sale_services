@@ -10,7 +10,9 @@ from openerp.tools.float_utils import float_compare
 
 CLAIM_SEQ_DICT = {'return': 'crm.claim.return',
 		'refund': 'crm.claim.refund',
-		'exchange': 'crm.claim.exchange'
+		'instore_return': 'crm.claim.return',
+		'exchange': 'crm.claim.exchange',
+		'send_out': 'crm.claim.exchange'
 }
 
 class CrmClaim(osv.osv):
@@ -124,6 +126,8 @@ class CrmClaim(osv.osv):
         return result.keys()
 
     _columns = {
+	'write_date': fields.datetime('Last Modified Date'),
+	'write_uid': fields.many2one('res.users', 'Last Modified By'),
 	'name': fields.char('Name', required=True),
 	'pickings': fields.one2many('stock.picking', 'claim', 'Return/Delivery Orders'),
 	'pricelist_id': fields.many2one('product.pricelist', 'Pricelist', required=True, readonly=True, states={'draft': [('readonly', False)], 'sent': [('readonly', False)]}),
@@ -140,7 +144,7 @@ class CrmClaim(osv.osv):
 	'partner_shipping_address': fields.many2one('res.partner', 'Shipping Address'),
         'picking_type_id': fields.many2one('stock.picking.type', 'Deliver To', help="This will determine picking type of incoming shipment"),
         'state': fields.selection(
-                [('cancel', 'Cancelled'),('draft', 'Draft'),('process', 'Processing'),('exception', 'Exception'),('done', 'Done')],
+                [('cancel', 'Cancelled'),('draft', 'Draft'),('process', 'Processing'),('partial', 'Partially Processed'),('exception', 'Exception'),('done', 'Done')],
                 'Status', required=True, readonly=True, copy=False,
                 help='* The \'Draft\' status is set when the claim is new and has not been processed. \
                     \n* The \'Processing\' status is set when the claim is in process. \
@@ -150,8 +154,21 @@ class CrmClaim(osv.osv):
 	'sale': fields.many2one('sale.order', 'Created From Sale', readonly=True),
 	'currency_id': fields.related('pricelist_id', 'currency_id', type="many2one", relation="res.currency", string="Currency", required=True),
 	'claim_reason': fields.many2one('crm.claim.reason', 'Reason', required=True),
+	'return_to_vendor': fields.boolean('Return to Vendor'),
+	'vendor_return_state': fields.selection([
+		('new', 'Started'),
+		('processing', 'Processing'),
+		('accepted', 'Accepted'),
+		('rejected', 'Rejected')],
+		'Vendor Return State'
+	),
+	'vendor_return_reject_reason': fields.text('Vendor Reject Reason'),
+	'vendor_rma_number': fields.char('Vendor RMA Number'),
+	'vendor': fields.many2one('res.partner', 'Return Vendor', domain="[('supplier', '=', True)]"),
 	'claim_action': fields.selection([('return', 'Return'),
 					  ('refund', 'Refund Only'),
+					  ('send_out', 'Send Only'),
+					  ('instore_return', 'Instore Return'),
 					  ('exchange', 'Exchange')], 
 	'Action Taken', required=True),
 
@@ -191,7 +208,6 @@ class CrmClaim(osv.osv):
                 'crm.claim.line': (_get_claim, ['sale_price_unit', 'tax_id', 'discount', 'order_qty'], 10),
             },
             multi='sums', help="The total amount."),
-
     }
 
 
@@ -372,29 +388,47 @@ class CrmClaim(osv.osv):
 
 
     def button_create_claim_delivery_order(self, cr, uid, ids, context=None):
+	self.write(cr, uid, ids, {'state': 'process'})
         return self.action_ship_create(cr, uid, ids, context=context)
 
 
     def button_create_claim_return(self, cr, uid, ids, context=None):
+	self.write(cr, uid, ids, {'state': 'process'})
         return self.action_return_create(cr, uid, ids, context=context)
 
 
     def button_create_claim_refund(self, cr, uid, ids, context=None):
+#	self.write(cr, uid, ids, {'state': 'process'})
         return False
 
 
     def action_return_create(self, cr, uid, ids, context=None):
-        for claim in self.browse(cr, uid, ids):
-            vals = {
+	claim = self.browse(cr, uid, ids[0])
+        vals = {
                 'picking_type_id': claim.picking_type_id.id,
                 'partner_id': claim.partner_shipping_address.id or claim.partner_id.id,
   #              'date': max([l.date_planned for l in claim.claim_return_lines]),
                 'origin': claim.name,
 		'claim': claim.id,
-            }
+        }
 
-            picking_id = self.pool.get('stock.picking').create(cr, uid, vals, context=context)
-            self._create_stock_moves(cr, uid, claim, claim.claim_return_lines, picking_id, context=context)
+        picking_id = self.pool.get('stock.picking').create(cr, uid, vals, context=context)
+        self._create_stock_moves(cr, uid, claim, claim.claim_return_lines, picking_id, context=context)
+
+	if claim.claim_action == 'instore_return':
+	    print 'Instore Return'
+	    picking_obj = self.pool.get('stock.picking')
+	    picking = picking_obj.browse(cr, uid, picking_id)
+            if picking.state == 'draft':
+                picking_obj.action_confirm(cr, uid, [picking.id], context=context)
+
+            if picking.state != 'assigned':
+                picking_obj.force_assign(cr, uid, [picking.id])
+
+            picking.do_transfer()
+            cr.commit()
+	    return True
+
 
         view_ref = self.pool.get('ir.model.data').get_object_reference(cr, uid, 'stock', 'view_picking_form')
         view_id = view_ref and view_ref[1] or False,
@@ -424,45 +458,45 @@ class CrmClaim(osv.osv):
         context['lang'] = self.pool['res.users'].browse(cr, uid, uid).lang
         procurement_obj = self.pool.get('procurement.order')
         claim_line_obj = self.pool.get('crm.claim.line')
-        for claim in self.browse(cr, uid, ids, context=context):
-            proc_ids = []
-            vals = self._prepare_procurement_group(cr, uid, claim, context=context)
+	claim = self.browse(cr, uid, ids[0])
+        proc_ids = []
+        vals = self._prepare_procurement_group(cr, uid, claim, context=context)
           #  if not claim.procurement_group_id:
 #		group_id = claim.sale.procurement_group_id.id
-            group_id = self.pool.get("procurement.group").create(cr, uid, vals, context=context)
+        group_id = self.pool.get("procurement.group").create(cr, uid, vals, context=context)
 #                claim.write({'procurement_group_id': group_id})
 
 	    #Remove notes and add proper state handling
-            for line in claim.claim_delivery_lines:
+        for line in claim.claim_delivery_lines:
                 #Try to fix exception procurement (possible when after a shipping exception the user choose to recreate)
-                if line.procurement_ids:
+            if line.procurement_ids:
                     #first check them to see if they are in exception or not (one of the related moves is cancelled)
-                    procurement_obj.check(cr, uid, [x.id for x in line.procurement_ids if x.state not in ['cancel', 'done']])
-                    line.refresh()
+                procurement_obj.check(cr, uid, [x.id for x in line.procurement_ids if x.state not in ['cancel', 'done']])
+                line.refresh()
                     #run again procurement that are in exception in order to trigger another move
-                    proc_ids += [x.id for x in line.procurement_ids if x.state in ('exception', 'cancel')]
-                    procurement_obj.reset_to_confirmed(cr, uid, proc_ids, context=context)
-		elif True:
+                proc_ids += [x.id for x in line.procurement_ids if x.state in ('exception', 'cancel')]
+                procurement_obj.reset_to_confirmed(cr, uid, proc_ids, context=context)
+	    elif True:
 #                elif claim_line_obj.need_procurement(cr, uid, [line.id], context=context):
-                    if (line.state == 'done') or not line.product:
-                        continue
-                    vals = self._prepare_claim_line_procurement(cr, uid, claim, line, group_id=group_id, context=context)
-                    proc_id = procurement_obj.create(cr, uid, vals, context=context)
-                    proc_ids.append(proc_id)
+                if (line.state == 'done') or not line.product:
+                    continue
+                vals = self._prepare_claim_line_procurement(cr, uid, claim, line, group_id=group_id, context=context)
+                proc_id = procurement_obj.create(cr, uid, vals, context=context)
+                proc_ids.append(proc_id)
             #Confirm procurement order such that rules will be applied on it
             #note that the workflow normally ensure proc_ids isn't an empty list
-            procurement_obj.run(cr, uid, proc_ids, context=context)
+        procurement_obj.run(cr, uid, proc_ids, context=context)
 
             #if shipping was in exception and the user choose to recreate the delivery order, write the new status of SO
-            if claim.state == 'shipping_except':
-                val = {'state': 'progress', 'shipped': False}
+        if claim.state == 'shipping_except':
+            val = {'state': 'progress', 'shipped': False}
 
-                if (claim.order_policy == 'manual'):
-                    for line in claim.claim_return_lines:
-                        if (not line.invoiced) and (line.state not in ('cancel', 'draft')):
-                            val['state'] = 'manual'
-                            break
-                claim.write(val)
+            if (claim.order_policy == 'manual'):
+                for line in claim.claim_return_lines:
+                    if (not line.invoiced) and (line.state not in ('cancel', 'draft')):
+                        val['state'] = 'manual'
+                        break
+            claim.write(val)
 
         view_ref = self.pool.get('ir.model.data').get_object_reference(cr, uid, 'stock', 'view_picking_form')
         view_id = view_ref and view_ref[1] or False,
@@ -614,7 +648,7 @@ class CrmClaimLine(osv.osv):
                 compare_qty = float_compare(product.virtual_available, order_qty, precision_rounding=uom_record.rounding)
                 if compare_qty == -1:
                     warn_msg = _('You plan to sell %.2f %s but you only have %.2f %s available !\nThe real stock is %.2f %s. (without reservations)') % \
-                        (qty, uom_record.name,
+                        (order_qty, uom_record.name,
                          max(0,product.virtual_available), uom_record.name,
                          max(0,product.qty_available), uom_record.name)
                     warning_msgs += _("Not enough stock ! : ") + warn_msg + "\n\n"	    

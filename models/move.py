@@ -18,7 +18,6 @@ class StockMove(osv.osv):
                 location_from, location_to, context=None):
 
         picking_obj = self.pool.get('stock.picking')
-
         res = super(StockMove, self)._picking_assign(cr, uid, move_ids, procurement_group, \
                 location_from, location_to, context=context)
 
@@ -28,5 +27,4 @@ class StockMove(osv.osv):
 	    picking = moves[0].picking_id
 	    vals = self.add_claim_vals(cr, uid, moves[0].procurement_id.claim_line_id.claim)
             picking_obj.write(cr, uid, picking.id, vals)
-
         return res
